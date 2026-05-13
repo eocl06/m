@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Günaydın</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    font-family: 'Cormorant Garamond', serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  body {
+    background: #2a160a;
+    background-image: radial-gradient(ellipse 80% 60% at 50% 40%, #5a2e15 0%, #2a160a 60%, #150a04 100%);
+    color: #e8d4b0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(91deg, transparent 0, rgba(0,0,0,0.025) 1px, transparent 3px, transparent 7px);
+    pointer-events: none;
+    z-index: 1;
+  }
+  body::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 2;
+    mix-blend-mode: overlay;
+  }
+  .stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+  }
+  .doll {
+    position: absolute;
+    cursor: pointer;
+    transform-origin: center;
+    filter: drop-shadow(0 12px 28px rgba(0,0,0,0.5));
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .doll:hover { transform: scale(1.03); }
+  .doll.opening { animation: openDoll 0.85s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+  @keyframes openDoll {
+    0%   { transform: scale(1); opacity: 1; }
+    40%  { transform: scale(1.06); opacity: 0.85; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+  .doll svg { display: block; width: 100%; height: 100%; }
+  .doll.entering { animation: enter 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+  @keyframes enter {
+    0%   { opacity: 0; transform: scale(0.6); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .message {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+    padding: 24px;
+  }
+  .message.show { opacity: 1; }
+  .greeting {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(36px, 9vw, 78px);
+    color: #f0dcb4;
+    letter-spacing: 0.01em;
+    text-align: center;
+    line-height: 1.1;
+    opacity: 0;
+    text-shadow: 0 2px 30px rgba(0,0,0,0.6);
+    animation: messageIn 2.2s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards;
+    padding: 0 16px;
+  }
+  @keyframes messageIn {
+    0%   { opacity: 0; transform: translateY(16px); letter-spacing: 0.08em; }
+    100% { opacity: 1; transform: translateY(0); letter-spacing: 0.01em; }
+  }
+  .start-hint {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: calc(6vh + env(safe-area-inset-bottom, 0px));
+    pointer-events: none;
+    font-style: italic;
+    font-size: 16px;
+    color: rgba(232, 212, 176, 0.4);
+    letter-spacing: 0.15em;
+    animation: hintPulse 3s ease-in-out infinite;
+  }
+  .start-hint.hidden {
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  @keyframes hintPulse {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 0.7; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage"></div>
+<div class="start-hint" id="hint">dokun</div>
+<div class="message" id="message">
+  <h1 class="greeting">Günaydın prenses!</h1>
+</div>
+
+<script>
+  // Boyutlar viewport'a göre runtime'da hesaplanır.
+  // Burada sadece oran tutuyoruz (en büyük doll = 1.0)
+  const dollData = [
+    { ratio: 1.00, scarf: '#7a1818', body: '#a82020', apron: '#e8c878', accent: '#f4e0b0', leaf: '#3d5a2a' },
+    { ratio: 0.84, scarf: '#1a3d6b', body: '#27568f', apron: '#d8c090', accent: '#e8d4a8', leaf: '#3d5a2a' },
+    { ratio: 0.68, scarf: '#6b1a4a', body: '#933066', apron: '#e8c878', accent: '#f4e0b0', leaf: '#3d5a2a' },
+    { ratio: 0.54, scarf: '#1f4a28', body: '#2d6b3a', apron: '#d8c090', accent: '#e8d4a8', leaf: '#3d5a2a' },
+    { ratio: 0.41, scarf: '#6b3818', body: '#9c5220', apron: '#e8c878', accent: '#f4e0b0', leaf: '#3d5a2a' },
+    { ratio: 0.29, scarf: '#3d1f5c', body: '#5a2d85', apron: '#d8c090', accent: '#e8d4a8', leaf: '#3d5a2a' },
+    { ratio: 0.18, scarf: '#8b1a1a', body: '#c42828', apron: '#e8c878', accent: '#f4e0b0', leaf: '#3d5a2a' }
+  ];
+
+  // En büyük matruşka, kısa kenarın %80'i kadar yüksek olsun
+  // (matruşka SVG'si 200x280, yani oranı 1.4 — bu yükseklik)
+  function getMaxHeight() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    // Genişliğin %75'i veya yüksekliğin %80'inden hangisi küçükse
+    const byWidth = (w * 0.75) * 1.4;  // SVG aspect ratio
+    const byHeight = h * 0.80;
+    return Math.min(byWidth, byHeight);
+  }
+
+  const dolls = dollData.map(d => ({ ...d }));
+
+  function dollSVG(c) {
+    const id = c.body.slice(1);
+    return `
+      <svg viewBox="0 0 200 280" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="b${id}" cx="38%" cy="38%" r="75%">
+            <stop offset="0%"  stop-color="${c.body}"/>
+            <stop offset="65%" stop-color="${c.body}"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0.45"/>
+          </radialGradient>
+          <radialGradient id="f${id}" cx="42%" cy="35%" r="60%">
+            <stop offset="0%"  stop-color="#fdf0d6"/>
+            <stop offset="100%" stop-color="#e8c89c"/>
+          </radialGradient>
+          <radialGradient id="s${id}" cx="40%" cy="25%" r="70%">
+            <stop offset="0%"  stop-color="${c.scarf}"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0.4"/>
+          </radialGradient>
+          <radialGradient id="a${id}" cx="50%" cy="40%" r="60%">
+            <stop offset="0%"  stop-color="${c.apron}"/>
+            <stop offset="100%" stop-color="${c.apron}" stop-opacity="0.85"/>
+          </radialGradient>
+        </defs>
+        <path d="M 100 270 C 38 270, 24 218, 24 168 C 24 128, 34 92, 56 73 C 67 64, 82 59, 100 59 C 118 59, 133 64, 144 73 C 166 92, 176 128, 176 168 C 176 218, 162 270, 100 270 Z" fill="url(#b${id})"/>
+        <ellipse cx="100" cy="188" rx="52" ry="62" fill="url(#a${id})"/>
+        <g opacity="0.92">
+          <ellipse cx="100" cy="155" rx="6" ry="10" fill="${c.scarf}"/>
+          <ellipse cx="100" cy="195" rx="6" ry="10" fill="${c.scarf}"/>
+          <ellipse cx="80"  cy="175" rx="10" ry="6" fill="${c.scarf}"/>
+          <ellipse cx="120" cy="175" rx="10" ry="6" fill="${c.scarf}"/>
+          <ellipse cx="86"  cy="161" rx="7" ry="7" fill="${c.scarf}" transform="rotate(-45 86 161)"/>
+          <ellipse cx="114" cy="161" rx="7" ry="7" fill="${c.scarf}" transform="rotate(45 114 161)"/>
+          <ellipse cx="86"  cy="189" rx="7" ry="7" fill="${c.scarf}" transform="rotate(45 86 189)"/>
+          <ellipse cx="114" cy="189" rx="7" ry="7" fill="${c.scarf}" transform="rotate(-45 114 189)"/>
+          <circle cx="100" cy="175" r="9" fill="${c.accent}"/>
+          <circle cx="100" cy="175" r="4" fill="${c.scarf}"/>
+        </g>
+        <ellipse cx="68" cy="220" rx="5" ry="9" fill="${c.leaf}" transform="rotate(-35 68 220)"/>
+        <ellipse cx="132" cy="220" rx="5" ry="9" fill="${c.leaf}" transform="rotate(35 132 220)"/>
+        <circle cx="76" cy="232" r="3.5" fill="${c.scarf}"/>
+        <circle cx="124" cy="232" r="3.5" fill="${c.scarf}"/>
+        <circle cx="100" cy="240" r="3" fill="${c.scarf}"/>
+        <ellipse cx="100" cy="188" rx="52" ry="62" fill="none" stroke="${c.scarf}" stroke-width="1.2" opacity="0.4"/>
+        <path d="M 60 102 C 55 80, 65 64, 80 59 C 90 55, 110 55, 120 59 C 135 64, 145 80, 140 102 C 138 110, 132 120, 125 124 C 116 130, 108 132, 100 132 C 92 132, 84 130, 75 124 C 68 120, 62 110, 60 102 Z" fill="url(#s${id})"/>
+        <circle cx="74" cy="84" r="1.6" fill="${c.accent}" opacity="0.65"/>
+        <circle cx="126" cy="84" r="1.6" fill="${c.accent}" opacity="0.65"/>
+        <circle cx="100" cy="72" r="1.6" fill="${c.accent}" opacity="0.65"/>
+        <circle cx="66" cy="100" r="1.4" fill="${c.accent}" opacity="0.55"/>
+        <circle cx="134" cy="100" r="1.4" fill="${c.accent}" opacity="0.55"/>
+        <ellipse cx="100" cy="108" rx="26" ry="30" fill="url(#f${id})"/>
+        <ellipse cx="83" cy="117" rx="5" ry="3.5" fill="#d68888" opacity="0.5"/>
+        <ellipse cx="117" cy="117" rx="5" ry="3.5" fill="#d68888" opacity="0.5"/>
+        <path d="M 86 104 Q 90 101, 94 104" stroke="#3a2418" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+        <path d="M 106 104 Q 110 101, 114 104" stroke="#3a2418" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+        <path d="M 96 124 Q 100 126, 104 124" stroke="#8b3a32" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+        <path d="M 100 270 C 38 270, 24 218, 24 168 C 24 128, 34 92, 56 73 C 67 64, 82 59, 100 59 C 118 59, 133 64, 144 73 C 166 92, 176 128, 176 168 C 176 218, 162 270, 100 270 Z" fill="none" stroke="#2a1408" stroke-width="1.4" opacity="0.55"/>
+      </svg>
+    `;
+  }
+
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playOpen(index) {
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    // Wooden "tock"
+    const noise = audioCtx.createBufferSource();
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.15, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.02));
+    }
+    noise.buffer = buf;
+    const bp = audioCtx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 800 + index * 60;
+    bp.Q.value = 4;
+    const noiseGain = audioCtx.createGain();
+    noiseGain.gain.value = 0.25;
+    noise.connect(bp).connect(noiseGain).connect(audioCtx.destination);
+    noise.start(now);
+    noise.stop(now + 0.15);
+    // Chime
+    const notes = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33];
+    const freq = notes[index] || 659.25;
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const oscGain = audioCtx.createGain();
+    oscGain.gain.setValueAtTime(0, now);
+    oscGain.gain.linearRampToValueAtTime(0.18, now + 0.02);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    osc.connect(oscGain).connect(audioCtx.destination);
+    osc.start(now + 0.04);
+    osc.stop(now + 1.0);
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 2;
+    const osc2Gain = audioCtx.createGain();
+    osc2Gain.gain.setValueAtTime(0, now);
+    osc2Gain.gain.linearRampToValueAtTime(0.06, now + 0.04);
+    osc2Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    osc2.connect(osc2Gain).connect(audioCtx.destination);
+    osc2.start(now + 0.04);
+    osc2.stop(now + 0.7);
+  }
+
+  function playFinal() {
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    const freqs = [523.25, 659.25, 783.99];
+    freqs.forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0, now + i * 0.08);
+      g.gain.linearRampToValueAtTime(0.14, now + i * 0.08 + 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 2.5);
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start(now + i * 0.08);
+      osc.stop(now + i * 0.08 + 2.6);
+    });
+  }
+
+  let i = 0;
+  const stage = document.getElementById('stage');
+  const message = document.getElementById('message');
+  const hint = document.getElementById('hint');
+
+  function render() {
+    if (i >= dolls.length) {
+      message.classList.add('show');
+      playFinal();
+      return;
+    }
+    const c = dolls[i];
+    stage.innerHTML = '';
+    const el = document.createElement('div');
+    el.className = 'doll entering';
+    const maxH = getMaxHeight();
+    const height = maxH * c.ratio;
+    const width = height / 1.4;
+    el.style.width = width + 'px';
+    el.style.height = height + 'px';
+    el.innerHTML = dollSVG(c);
+    el.onclick = () => {
+      initAudio();
+      playOpen(i);
+      el.classList.remove('entering');
+      el.classList.add('opening');
+      if (i === 0) hint.classList.add('hidden');
+      setTimeout(() => { i++; render(); }, 650);
+    };
+    stage.appendChild(el);
+  }
+
+  // Pencere yeniden boyutlandığında (telefon döndürünce) mevcut matruşkayı yeniden boyutlandır
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const currentDoll = stage.querySelector('.doll');
+      if (currentDoll && !currentDoll.classList.contains('opening')) {
+        const c = dolls[i];
+        const maxH = getMaxHeight();
+        const height = maxH * c.ratio;
+        currentDoll.style.width = (height / 1.4) + 'px';
+        currentDoll.style.height = height + 'px';
+      }
+    }, 150);
+  });
+
+  render();
+</script>
+
+</body>
+</html>
