@@ -227,12 +227,46 @@
   }
 
   let audioCtx = null;
-  function initAudio() {
-    if (!audioCtx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      audioCtx = new AC();
+  let audioUnlocked = false;
+
+  // iOS Safari sessiz modu hilesi: AudioContext'i bir HTML5 audio
+  // elementine bağlayınca sistem onu "medya" olarak görür ve
+  // sessiz anahtarı açıkken bile çalar.
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    audioCtx = new AC();
+    
+    // 1) Context'i resume et (kullanıcı etkileşimi içinde olmalı)
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
     }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    // 2) iOS için sessiz bir audio element çal, ses kanalını "medya"ya çevir
+    const silentAudio = document.createElement('audio');
+    silentAudio.setAttribute('playsinline', '');
+    silentAudio.setAttribute('webkit-playsinline', '');
+    // 1 saniyelik sessiz WAV (base64)
+    silentAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+    silentAudio.loop = true;
+    silentAudio.volume = 0.01;
+    silentAudio.play().catch(() => {});
+    
+    // 3) Sessiz buffer'ı context'ten geçir, "warm up"
+    const buffer = audioCtx.createBuffer(1, 1, 22050);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start(0);
+    
+    audioUnlocked = true;
+  }
+
+  function initAudio() {
+    if (!audioUnlocked) unlockAudio();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   }
 
   function playOpen(index) {
@@ -344,6 +378,11 @@
         currentDoll.style.height = height + 'px';
       }
     }, 150);
+  });
+
+  // İlk kullanıcı etkileşiminde sesi unlock et (iOS için kritik)
+  ['touchstart', 'touchend', 'mousedown', 'click'].forEach(evt => {
+    document.body.addEventListener(evt, unlockAudio, { once: false, passive: true });
   });
 
   render();
