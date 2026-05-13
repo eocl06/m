@@ -87,6 +87,7 @@
     pointer-events: none;
     z-index: 5;
     padding: 24px;
+    transition: opacity 0.5s ease-out;
   }
   .message.show { opacity: 1; }
   .greeting {
@@ -333,6 +334,7 @@
   }
 
   let i = 0;
+  let isOpening = false;
   const stage = document.getElementById('stage');
   const message = document.getElementById('message');
   const hint = document.getElementById('hint');
@@ -345,6 +347,7 @@
     }
     const c = dolls[i];
     stage.innerHTML = '';
+    isOpening = false;
     const el = document.createElement('div');
     el.className = 'doll entering';
     const maxH = getMaxHeight();
@@ -354,12 +357,18 @@
     el.style.height = height + 'px';
     el.innerHTML = dollSVG(c);
     el.onclick = () => {
+      if (isOpening) return;          // çift tıklama koruması
+      isOpening = true;
       initAudio();
       playOpen(i);
       el.classList.remove('entering');
       el.classList.add('opening');
       if (i === 0) hint.classList.add('hidden');
-      setTimeout(() => { i++; render(); }, 650);
+      
+      const isLast = (i === dolls.length - 1);
+      // Son matruşkada animasyon tam bitsin sonra mesaj gelsin
+      const delay = isLast ? 850 : 650;
+      setTimeout(() => { i++; render(); }, delay);
     };
     stage.appendChild(el);
   }
